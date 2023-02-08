@@ -19,11 +19,11 @@ def check_output(cmd):
     return subprocess.check_output(split(cmd)).decode()
     
 
-def system_dep(pkg, legacy):
+def system_dep(pkg, noetic):
 
     dashed = pkg.replace('_', '-')
 
-    if not legacy:
+    if noetic:
         return [f'ros-noetic-{dashed}']
 
     dev = f"lib{dashed}-dev"
@@ -43,13 +43,6 @@ pkg = 'ros-baxter'
 ver = '1.2.1'
 dest = f'{pkg}_{ver}'
 
-# find cmake path
-cmake_prefix = []
-for d in os.listdir('/usr/share'):
-    if os.path.exists(f'/usr/share/{d}/package.xml'):
-        cmake_prefix.append(f'/usr/share/{d}')
-cmake_prefix = ':'.join(cmake_prefix)
-
 # find depends that are non-ROS
 ros_pkg = check_output(f'ls {src}/install/share').split()
 #ros_pkg = [line.split()[-1] for line in ros_pkg]
@@ -57,17 +50,16 @@ ros_pkg = check_output(f'ls {src}/install/share').split()
 apt_pkg = check_output('apt list').splitlines()
 apt_pkg = set(line.split('/')[0] for line in apt_pkg)
 
-# source should be compiled as such
-#base_dir = os.path.abspath(os.curdir)
-#os.chdir(src)
+# source should be compiled as such, on a Noetic setup
 #run(f'catkin_make install --cmake-args -DCATKIN_ENABLE_TESTING=OFF')
-#os.chdir(base_dir)
 
-for distro in ('community','noetic'):
+for noetic in (True,False):
 
-    legacy = distro == 'community'
+    target = 'noetic' if noetic else 'community'
 
-    install = '/usr' if legacy else f'/opt/ros/{distro}'
+    print('Creating package for ' + target)
+
+    install = '/opt/ros/noetic' if noetic else '/usr'
 
     # copy to pkg
     base = f'{dest}{install}'
@@ -80,7 +72,7 @@ for distro in ('community','noetic'):
     os.makedirs(f'{dest}/DEBIAN')
 
     ignored = ['*__pycache__*']
-    if not legacy:
+    if noetic:
         ignored.append('control_msgs')
 
     shutil.copytree(f'{src}/install', base, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ignored))
@@ -90,7 +82,7 @@ for distro in ('community','noetic'):
         if not os.path.isdir(base+'/'+f):
             os.remove(base+'/'+f)
 
-    if legacy:
+    if not noetic:
         os.mkdir(base + '/bin')
         # create links to baxter nodes
         for root, subdirs,files in os.walk(f'{base}/lib'):
@@ -133,8 +125,8 @@ for distro in ('community','noetic'):
                     found = True
                 else:
                     depends[dep] = []
-                    for sysdep in system_dep(dep, legacy):
-                        if sysdep in apt_pkg or not legacy:
+                    for sysdep in system_dep(dep, noetic):
+                        if sysdep in apt_pkg or noetic:
                             print(f'Found system depend {sysdep} for {pkg}')
                             depends[dep].append(sysdep)
                             found = True
@@ -143,10 +135,10 @@ for distro in ('community','noetic'):
                     print(f'{dep} is an unknown dependency for {pkg}')
                     depends[dep] = None
 
-    if legacy:
-        base_depends = 'libactionlib-msgs-dev, libdiagnostic-msgs-dev, ros-diagnostic-msgs, libroscpp-dev, python3-roslaunch'
+    if noetic:
+        base_depends = '{ros}-actionlib-msgs, {ros}-diagnostic-msgs, {ros}-roscpp, {ros}-roslaunch'.format(ros='ros-noetic')
     else:
-        base_depends = '{ros}-actionlib-msgs, {ros}-diagnostic-msgs, {ros}-roscpp, {ros}-roslaunch'.format(ros='ros-' + distro)
+        base_depends = 'libactionlib-msgs-dev, libdiagnostic-msgs-dev, ros-diagnostic-msgs, libroscpp-dev, python3-roslaunch'
 
     depends = ', '.join([base_depends] + [dep for dep in depends.values() if dep])
 
@@ -163,16 +155,15 @@ Essential: no
 Installed-Size: {size}
 Depends: {depends}
 Maintainer: olivier.kermorgant@ec-nantes.fr
-Description: Base Baxter ROS 1 packages for use with ROS {distro} version
+Description: Base Baxter ROS 1 packages for use with ROS {target} version
 ''')
 
     # chown and create pkg
     print('Changing permissions...')
     run(f'sudo chmod 0775 {dest} -R')
     run(f'sudo chown root:root {dest} -R')
-    print(f'Creating package for {distro}')
     run(f'dpkg-deb -b {dest}')
 
     idx = dest.rfind('_')
 
-    shutil.move(dest+'.deb', f'{dest[:idx]}[{distro}]{dest[idx:]}.deb')
+    shutil.move(dest+'.deb', f'{dest[:idx]}[{target}]{dest[idx:]}.deb')
