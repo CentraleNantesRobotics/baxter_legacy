@@ -19,7 +19,7 @@ def check_output(cmd):
     return subprocess.check_output(split(cmd)).decode()
     
 
-def system_dep(pkg, noetic):
+def system_dep(pkg, noetic, only = None):
 
     dashed = pkg.replace('_', '-')
 
@@ -29,6 +29,12 @@ def system_dep(pkg, noetic):
     dev = f"lib{dashed}-dev"
     lib = f"ros-{dashed}"
     py = f'python3-{dashed}'
+    if only == 'dev':
+        return [dev]
+    elif only == 'lib':
+        return [lib]
+    elif only == 'py':
+        return [py]
     
     if pkg.endswith('_msgs'):
         return [dev, py,lib]
@@ -40,7 +46,7 @@ def system_dep(pkg, noetic):
 
 src = os.path.dirname(__file__) + '/baxter_src'
 pkg = 'ros-baxter'
-ver = '1.2.1'
+ver = '1.2.2'
 dest = f'{pkg}_{ver}'
 
 # find depends that are non-ROS
@@ -135,12 +141,14 @@ for noetic in (True,False):
                     print(f'{dep} is an unknown dependency for {pkg}')
                     depends[dep] = None
 
-    if noetic:
-        base_depends = '{ros}-actionlib-msgs, {ros}-diagnostic-msgs, {ros}-roscpp, {ros}-roslaunch'.format(ros='ros-noetic')
-    else:
-        base_depends = 'libactionlib-msgs-dev, libdiagnostic-msgs-dev, ros-diagnostic-msgs, libroscpp-dev, python3-roslaunch'
+    base_depends = {}
+    base_depends['dev'] = ['actionlib-msgs', 'diagnostic-msgs', 'roscpp']
+    base_depends['lib'] = ['diagnostic-msgs']
+    base_depends['py'] = ['roslaunch','rostopic','rosservice','rosnode']
 
-    depends = ', '.join([base_depends] + [dep for dep in depends.values() if dep])
+    base_depends = [system_dep(pkg, noetic, only)[0] for only,pkgs in base_depends.items() for pkg in pkgs]
+
+    depends = ', '.join(base_depends + [dep for dep in depends.values() if dep])
 
     # create config
     size = check_output(f'du -s --block-size=1024 {dest}/').split('\t')[0]
