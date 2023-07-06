@@ -59,6 +59,7 @@ apt_pkg = set(line.split('/')[0] for line in apt_pkg)
 # source should be compiled as such, on a Noetic setup
 #run(f'catkin_make install --cmake-args -DCATKIN_ENABLE_TESTING=OFF')
 
+
 for noetic in (True,False):
 
     target = 'noetic' if noetic else 'community'

@@ -21,6 +21,7 @@ lib64
 # Installer logs
 pip-log.txt
 
+
 # Unit test / coverage reports
 .coverage
 .tox
@@ -54,6 +55,5 @@ srv_gen
 
 # Deb artefacts
 baxter_src/
-*.deb
 ros-baxter_*
 
