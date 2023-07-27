@@ -46,7 +46,7 @@ def system_dep(pkg, noetic, only = None):
 
 src = os.path.dirname(__file__) + '/baxter_src'
 pkg = 'ros-baxter'
-ver = '1.2.2'
+ver = '1.3.0'
 dest = f'{pkg}_{ver}'
 
 # find depends that are non-ROS
@@ -60,16 +60,16 @@ apt_pkg = set(line.split('/')[0] for line in apt_pkg)
 #run(f'catkin_make install --cmake-args -DCATKIN_ENABLE_TESTING=OFF')
 
 
-for noetic in (True,False):
+for noetic in (False,True):
 
     target = 'noetic' if noetic else 'community'
 
     print('Creating package for ' + target)
 
-    install = '/opt/ros/noetic' if noetic else '/usr'
+    prefix = '/opt/ros/noetic' if noetic else '/usr'
 
     # copy to pkg
-    base = f'{dest}{install}'
+    base = f'{dest}{prefix}'
     share = f'{base}/share'
 
     if os.path.exists(dest):
@@ -83,11 +83,14 @@ for noetic in (True,False):
         ignored.append('control_msgs')
 
     shutil.copytree(f'{src}/install', base, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ignored))
-    # remove non-wanted file
-    run(f'rm -rf {base}/lib/pkgconfig')
+
+    # remove unwanted files
     for f in os.listdir(base):
         if not os.path.isdir(base+'/'+f):
             os.remove(base+'/'+f)
+
+    # pkgconfig dir
+    pkgconfig = f'{base}/lib/pkgconfig'
 
     if not noetic:
         os.mkdir(base + '/bin')
@@ -97,13 +100,14 @@ for noetic in (True,False):
                 for f in files:
                     run(f'ln -s {root[len(dest):]}/{f} {base}/bin/baxter_{f}')
 
-        #
-        #os.makedirs(f'{dest}/etc/profile.d')
-        #with open(f'{dest}/etc/profile.d/ros_package_path.sh', 'w') as f:
-            #f.write('''export ROS_PACKAGE_PATH=/usr/share
-        #alias enable_robot="python3 /usr/lib/baxter_tools/enable_robot.py"
-        #alias tuck_arms="python3 /usr/lib/baxter_tools/tuck_arms.py"
-        #''')
+        # move pkgconfig files to share
+        run(f'mv {base}/lib/pkgconfig {base}/share')
+        pkgconfig = f'{base}/share/pkgconfig'
+
+    # adapt pkgconfig files to this prefix
+    prefix_sed = prefix.replace('/','\\/')
+    for pc in os.listdir(pkgconfig):
+        run(f'sed -i "s/^prefix=.*$/prefix={prefix_sed}/" {pkgconfig}/{pc}')
 
     run(f'sudo chmod 0777 {dest} -R')
 
