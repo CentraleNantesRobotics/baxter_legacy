@@ -5,6 +5,7 @@ import subprocess
 from shlex import split
 import sys
 
+ver = '1.3.1'
 
 def error_exit(error):
     print(error)
@@ -46,7 +47,6 @@ def system_dep(pkg, noetic, only = None):
 
 src = os.path.dirname(__file__) + '/baxter_src'
 pkg = 'ros-baxter'
-ver = '1.3.0'
 dest = f'{pkg}_{ver}'
 
 # find depends that are non-ROS
@@ -60,7 +60,7 @@ apt_pkg = set(line.split('/')[0] for line in apt_pkg)
 #run(f'catkin_make install --cmake-args -DCATKIN_ENABLE_TESTING=OFF')
 
 
-for noetic in (False,True):
+for noetic in (True,False):
 
     target = 'noetic' if noetic else 'community'
 
@@ -80,7 +80,7 @@ for noetic in (False,True):
 
     ignored = ['*__pycache__*']
     if noetic:
-        ignored.append('control_msgs')
+        ignored.append('control_msgs*')
 
     shutil.copytree(f'{src}/install', base, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ignored))
 
@@ -148,6 +148,8 @@ for noetic in (False,True):
 
     base_depends = {}
     base_depends['dev'] = ['actionlib-msgs', 'diagnostic-msgs', 'roscpp']
+    if noetic:
+        base_depends['dev'].append('control-msgs')
     base_depends['lib'] = ['diagnostic-msgs']
     base_depends['py'] = ['roslaunch','rostopic','rosservice','rosnode']
 
