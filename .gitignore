@@ -56,4 +56,5 @@ srv_gen
 # Deb artefacts
 baxter_src/
 ros-baxter_*
+*.deb
 

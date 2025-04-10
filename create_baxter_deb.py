@@ -96,9 +96,10 @@ for target, prefix in targets.items():
     shutil.copytree(f'{install_ws}', base, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*ignored))
 
     # remove unwanted files
-    for f in os.listdir(base):
-        if not os.path.isdir(base+'/'+f):
-            os.remove(base+'/'+f)
+    if 'obese' not in install_ws:
+        for f in os.listdir(base):
+            if not os.path.isdir(base+'/'+f):
+                os.remove(base+'/'+f)
 
     # pkgconfig dir
     pkgconfig = f'{base}/lib/pkgconfig'
